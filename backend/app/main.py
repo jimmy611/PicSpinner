@@ -13,6 +13,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173"], allo
 
 
 @app.get("/health")
+@app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "privacy": "request data is processed in memory"}
 
