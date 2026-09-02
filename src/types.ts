@@ -1,4 +1,4 @@
-export type ExtractionMode = 'exact' | 'optimized';
+export type ExtractionMode = 'simple' | 'exact' | 'optimized';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 export type ImageStatus = 'ready' | 'queued' | 'processing' | 'done' | 'error';
 

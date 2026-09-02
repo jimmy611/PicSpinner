@@ -43,6 +43,20 @@ export function combinedMarkdown(pages: string[], merge: boolean): string {
   return `# Screenshot Batch\n\n${result}`;
 }
 
+export function combinedPlainText(pages: string[], merge: boolean): string {
+  if (!pages.length) return '';
+  if (!merge) return pages.join('\n\n');
+  let result = pages[0].trim();
+  for (let index = 1; index < pages.length; index += 1) {
+    const overlap = mergeTextOverlap(pages[index - 1], pages[index], true);
+    const nextBody = overlap.words > 0
+      ? overlap.merged.slice(pages[index - 1].trim().length).trim()
+      : pages[index].trim();
+    result = `${result}\n\n${nextBody}`.trim();
+  }
+  return result;
+}
+
 export function similarityHash(bytes: Uint8Array): string {
   let hash = 2166136261;
   const stride = Math.max(1, Math.floor(bytes.length / 4096));

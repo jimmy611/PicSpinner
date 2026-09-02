@@ -32,6 +32,14 @@ export function renderMarkdown(regions: TextRegion[], includeUi = false): string
   return lines.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+export function renderPlainText(regions: TextRegion[], includeUi = true): string {
+  return (includeUi ? regions : regions.filter((region) => region.kind !== 'ui'))
+    .map((region) => region.text.trim())
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
+
 export function normalizeRegions(regions: TextRegion[]): TextRegion[] {
   const heights = regions.map((r) => r.bbox.height).sort((a, b) => a - b);
   const median = heights[Math.floor(heights.length / 2)] || 16;

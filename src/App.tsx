@@ -7,10 +7,10 @@ import {
 import type { ExtractionOptions, SourceImage, TextRegion } from './types';
 import { imageFromFile, downloadText } from './core/files';
 import { OcrPool } from './core/ocr';
-import { combinedMarkdown } from './core/overlap';
-import { renderMarkdown } from './core/structure';
+import { combinedMarkdown, combinedPlainText } from './core/overlap';
+import { renderMarkdown, renderPlainText } from './core/structure';
 
-const defaultOptions: ExtractionOptions = { mode: 'exact', mergeOverlaps: true, includeUi: false, language: 'eng' };
+const defaultOptions: ExtractionOptions = { mode: 'simple', mergeOverlaps: true, includeUi: false, language: 'eng' };
 
 function plainText(markdown: string): string {
   return markdown.replace(/^#{1,6}\s+/gm, '').replace(/^\*\*(.*?)\*\*$/gm, '$1').replace(/^\*\s+/gm, '• ');
@@ -34,9 +34,11 @@ export default function App() {
   const active = images.find((image) => image.id === activeId) ?? images[0];
   const done = images.filter((image) => image.status === 'done');
 
-  const includeUi = options.mode === 'exact' || options.includeUi;
-  const output = useMemo(() => combinedMarkdown(done.map((image) =>
-    renderMarkdown(image.regions, includeUi)), options.mergeOverlaps), [done, includeUi, options.mergeOverlaps]);
+  const simpleMode = options.mode === 'simple';
+  const includeUi = options.mode !== 'optimized' || options.includeUi;
+  const output = useMemo(() => simpleMode
+    ? combinedPlainText(done.map((image) => renderPlainText(image.regions, includeUi)), options.mergeOverlaps)
+    : combinedMarkdown(done.map((image) => renderMarkdown(image.regions, includeUi)), options.mergeOverlaps), [done, includeUi, options.mergeOverlaps, simpleMode]);
   const characterCount = output.length;
   const uncertain = useMemo(() => images.flatMap((image) => image.regions.filter((r) => r.level !== 'high').map((region) => ({ image, region }))), [images]);
   const results = useMemo(() => {
@@ -143,9 +145,9 @@ export default function App() {
 
         <section className="control-panel">
           <div className="control-copy"><span className="step inverse">02</span><div><h2>Extraction setup</h2><p>Optimized for maximum recall</p></div></div>
-          <label className="select-label">Mode<select value={options.mode} onChange={(e) => setOptions({ ...options, mode: e.target.value as ExtractionOptions['mode'] })}><option value="exact">Exact mode</option><option value="optimized">AI-optimized</option></select><ChevronDown /></label>
+          <label className="select-label">Mode<select value={options.mode} onChange={(e) => setOptions({ ...options, mode: e.target.value as ExtractionOptions['mode'] })}><option value="simple">Simple text</option><option value="exact">Exact structured</option><option value="optimized">AI-optimized</option></select><ChevronDown /></label>
           <label className="toggle"><input type="checkbox" checked={options.mergeOverlaps} onChange={(e) => setOptions({ ...options, mergeOverlaps: e.target.checked })}/><i/><span><strong>Merge overlaps</strong><small>Conservative duplicate removal</small></span></label>
-          <label className={`toggle ${options.mode === 'exact' ? 'disabled' : ''}`}><input type="checkbox" checked={includeUi} disabled={options.mode === 'exact'} onChange={(e) => setOptions({ ...options, includeUi: e.target.checked })}/><i/><span><strong>Include UI text</strong><small>{options.mode === 'exact' ? 'Always on in Exact mode' : 'Navigation and browser chrome'}</small></span></label>
+          <label className={`toggle ${options.mode !== 'optimized' ? 'disabled' : ''}`}><input type="checkbox" checked={includeUi} disabled={options.mode !== 'optimized'} onChange={(e) => setOptions({ ...options, includeUi: e.target.checked })}/><i/><span><strong>Include UI text</strong><small>{options.mode !== 'optimized' ? 'Always on in this mode' : 'Navigation and browser chrome'}</small></span></label>
           <button className="primary" onClick={process} disabled={processing || !images.some((image) => image.status !== 'done')}><Play />{processing ? 'Processing…' : done.length ? 'Process remaining' : 'Extract text'}<span>⌘ ↵</span></button>
         </section>
       </>}
@@ -156,12 +158,12 @@ export default function App() {
         {query && <div className="search-results">{results.length ? results.map(({ image, imageIndex, region }) => <button key={region.id} onClick={() => { setActiveId(image.id); setActiveRegion(region.id); }}><strong>Image {imageIndex + 1} · Line {region.lineIndex + 1}</strong><span>{region.text}</span></button>) : <p>No matching text found.</p>}</div>}
         <div className="review-grid">
           <div className="source-pane panel"><div className="pane-head"><span><FileImage/>Original · Image {images.indexOf(active) + 1}</span><small>{active?.width} × {active?.height}</small></div>{active && <div className="image-stage"><div className="image-wrap"><img src={active.url} alt="Original screenshot"/>{active.regions.map((region) => <button key={region.id} className={`region-box ${activeRegion === region.id ? 'selected' : ''} ${region.level}`} style={{ left: `${region.bbox.x / active.width * 100}%`, top: `${region.bbox.y / active.height * 100}%`, width: `${region.bbox.width / active.width * 100}%`, height: `${region.bbox.height / active.height * 100}%` }} onClick={() => setActiveRegion(region.id)} aria-label={`Select text: ${region.text}`}/>)}</div></div>}</div>
-          <div className="text-pane panel"><div className="pane-head"><span><Clipboard/>{showReview ? 'Uncertain text' : 'Structured text'}</span><button onClick={() => active && copy(renderMarkdown(active.regions, includeUi), 'Image copied')}><Copy/> Copy image</button></div><div className="region-list">{visibleRegions.length ? visibleRegions.map((region) => <RegionEditor key={region.id} region={region} selected={activeRegion === region.id} onSelect={() => setActiveRegion(region.id)} onChange={(text) => active && updateRegion(active.id, region.id, text)}/>) : <div className="empty-review"><Check/>No uncertain lines in this image.</div>}</div></div>
+          <div className={`text-pane panel ${simpleMode && !showReview ? 'simple-output' : ''}`}><div className="pane-head"><span><Clipboard/>{showReview ? 'Uncertain text' : simpleMode ? 'Plain text' : 'Structured text'}</span><button onClick={() => active && copy(simpleMode ? renderPlainText(active.regions, includeUi) : renderMarkdown(active.regions, includeUi), 'Image copied')}><Copy/> Copy image</button></div><div className="region-list">{visibleRegions.length ? visibleRegions.map((region) => <RegionEditor key={region.id} region={region} simple={simpleMode && !showReview} selected={activeRegion === region.id} onSelect={() => setActiveRegion(region.id)} onChange={(text) => active && updateRegion(active.id, region.id, text)}/>) : <div className="empty-review"><Check/>No uncertain lines in this image.</div>}</div></div>
         </div>
       </section>}
     </main>
 
-    {done.length > 0 && <footer className="action-dock"><div><span>{done.length}/{images.length} processed</span><i/><span>{characterCount.toLocaleString()} characters</span></div><div><button className="secondary" onClick={() => copy(plainText(output), 'Plain text copied')}><Copy/> Copy plain</button><button className="secondary" onClick={() => downloadText(output, 'md')}><ArrowDownToLine/> Download .md</button><button className="primary copy-all" onClick={() => copy(output, 'Copied all')}><Copy/> Copy all</button></div></footer>}
+    {done.length > 0 && <footer className="action-dock"><div><span>{done.length}/{images.length} processed</span><i/><span>{characterCount.toLocaleString()} characters</span></div><div>{!simpleMode && <button className="secondary" onClick={() => copy(plainText(output), 'Plain text copied')}><Copy/> Copy plain</button>}<button className="secondary" onClick={() => downloadText(output, simpleMode ? 'txt' : 'md')}><ArrowDownToLine/> Download .{simpleMode ? 'txt' : 'md'}</button><button className="primary copy-all" onClick={() => copy(output, 'Copied all')}><Copy/> Copy all</button></div></footer>}
     <input ref={fileInput} hidden type="file" accept="image/*" multiple onChange={(e) => void addFiles([...(e.target.files ?? [])])}/>
     <input ref={folderInput} hidden type="file" accept="image/*" multiple {...({ webkitdirectory: '' } as object)} onChange={(e) => void addFiles([...(e.target.files ?? [])])}/>
     {cameraOpen && <CameraModal onClose={() => setCameraOpen(false)} onCapture={acceptCameraPhoto}/>} 
@@ -258,8 +260,8 @@ function CameraModal({ onClose, onCapture }: { onClose: () => void; onCapture: (
   </div>;
 }
 
-function RegionEditor({ region, selected, onSelect, onChange }: { region: TextRegion; selected: boolean; onSelect: () => void; onChange: (text: string) => void }) {
-  return <div id={region.id} className={`region-editor ${selected ? 'selected' : ''}`} onClick={onSelect}><span className={`confidence-dot ${region.level}`} title={`${Math.round(region.confidence)}% confidence`}/><textarea rows={Math.max(1, Math.ceil(region.text.length / 72))} value={region.text} onChange={(e) => onChange(e.target.value)} aria-label={`Extracted line ${region.lineIndex + 1}`}/><small>{region.kind}</small></div>;
+function RegionEditor({ region, simple, selected, onSelect, onChange }: { region: TextRegion; simple: boolean; selected: boolean; onSelect: () => void; onChange: (text: string) => void }) {
+  return <div id={region.id} className={`region-editor ${simple ? 'simple' : ''} ${selected ? 'selected' : ''}`} onClick={onSelect}>{!simple && <span className={`confidence-dot ${region.level}`} title={`${Math.round(region.confidence)}% confidence`}/>}<textarea rows={Math.max(1, Math.ceil(region.text.length / 72))} value={region.text} onChange={(e) => onChange(e.target.value)} aria-label={`Extracted line ${region.lineIndex + 1}`}/>{!simple && <small>{region.kind}</small>}</div>;
 }
 
 function ScanGlyph() { return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8V5h3M16 5h3v3M19 16v3h-3M8 19H5v-3M8 9h8M8 12h8M8 15h5"/></svg>; }

@@ -4,9 +4,37 @@ import { normalizeRegions, renderMarkdown } from './structure';
 
 type ProgressCallback = (id: string, progress: number) => void;
 
+interface OcrBox { x0: number; y0: number; x1: number; y1: number }
+interface OcrWord { text: string; confidence: number; bbox: OcrBox }
+interface OcrLine { text: string; confidence: number; bbox: OcrBox; words?: OcrWord[] }
+
+function splitWideLine(line: OcrLine): OcrLine[] {
+  const words = line.words?.filter((word) => word.text.trim()) ?? [];
+  if (words.length < 2) return [line];
+  const lineHeight = Math.max(1, line.bbox.y1 - line.bbox.y0);
+  const splitThreshold = Math.max(36, lineHeight * 2.6);
+  const groups: OcrWord[][] = [[]];
+  for (const word of words) {
+    const previous = groups.at(-1)?.at(-1);
+    if (previous && word.bbox.x0 - previous.bbox.x1 > splitThreshold) groups.push([]);
+    groups.at(-1)!.push(word);
+  }
+  if (groups.length === 1) return [line];
+  return groups.map((group) => ({
+    text: group.map((word) => word.text).join(' '),
+    confidence: group.reduce((sum, word) => sum + word.confidence, 0) / group.length,
+    bbox: {
+      x0: Math.min(...group.map((word) => word.bbox.x0)),
+      y0: Math.min(...group.map((word) => word.bbox.y0)),
+      x1: Math.max(...group.map((word) => word.bbox.x1)),
+      y1: Math.max(...group.map((word) => word.bbox.y1)),
+    },
+  }));
+}
+
 function linesFromResult(data: unknown, image: SourceImage): TextRegion[] {
-  const payload = data as { blocks?: Array<{ paragraphs?: Array<{ lines?: Array<{ text: string; confidence: number; bbox: { x0: number; y0: number; x1: number; y1: number } }> }> }> };
-  const lines = payload.blocks?.flatMap((block) => block.paragraphs ?? []).flatMap((paragraph) => paragraph.lines ?? []) ?? [];
+  const payload = data as { blocks?: Array<{ paragraphs?: Array<{ lines?: OcrLine[] }> }> };
+  const lines = (payload.blocks?.flatMap((block) => block.paragraphs ?? []).flatMap((paragraph) => paragraph.lines ?? []) ?? []).flatMap(splitWideLine);
   return normalizeRegions(lines.filter((line) => line.text.trim()).map((line, index) => ({
     id: `${image.id}-region-${index}`,
     text: line.text.trimEnd(),

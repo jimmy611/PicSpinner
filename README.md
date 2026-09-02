@@ -8,6 +8,7 @@ The product favors fidelity over cleanup. Low-confidence lines remain visible an
 
 - Multi-image picker, drag and drop, clipboard paste, desktop folder input, and an in-app camera with live preview
 - Rear/front camera switching, local high-quality capture, immediate batch insertion, and automatic OCR after capture
+- Default Simple Text mode with clean editable lines, no Markdown syntax, confidence markers, or classification labels
 - Bounded concurrent local OCR using Tesseract.js workers with progressive per-image status
 - Spatial `Image → Region` model with boxes, reading order, confidence, and structural classification
 - Exact and AI-optimized modes, Markdown rendering, conservative overlap detection, and duplicate warnings
