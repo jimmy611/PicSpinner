@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Aperture, ArrowDownToLine, Camera, Check, ChevronDown, Clipboard, Copy, FileImage, FolderOpen,
-  GripVertical, ImagePlus, LockKeyhole, Moon, Play, Search, ShieldCheck, Sparkles, Sun,
+  GripVertical, ImagePlus, LockKeyhole, Moon, Play, Search, ShieldCheck, Sun,
   SwitchCamera, Upload, X,
 } from 'lucide-react';
 import type { ExtractionOptions, SourceImage, TextRegion } from './types';
@@ -126,7 +126,7 @@ export default function App() {
 
     <main id="top">
       <section className="intro">
-        <div><p className="eyebrow"><Sparkles size={14} /> High-fidelity transcription</p><h1>Turn screenshots into<br/><span>structured text.</span></h1><p>Preserve wording, punctuation, and hierarchy—ready to copy into any AI tool.</p></div>
+        <div><h1>Turn screenshots into<br/><span>structured text.</span></h1><p>Preserve wording, punctuation, and hierarchy. Ready to copy into any AI tool.</p></div>
         <div className="trust-card"><ShieldCheck /><div><strong>Private by design</strong><span>OCR runs locally in your browser. Nothing is uploaded.</span></div></div>
       </section>
 

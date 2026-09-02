@@ -17,7 +17,6 @@ button { color:inherit; }
 .icon-button svg { width:17px; }
 main { width:min(1240px,calc(100% - 48px)); margin:0 auto; }
 .intro { padding:60px 0 42px; display:flex; align-items:flex-end; justify-content:space-between; gap:40px; }
-.eyebrow { margin:0 0 15px!important; color:var(--blue)!important; font-size:12px!important; text-transform:uppercase; letter-spacing:1.6px; font-weight:800; display:flex; align-items:center; gap:7px; }
 .intro h1 { font-size:clamp(38px,5vw,66px); font-weight:800; line-height:1.03; letter-spacing:-3.2px; margin:0; max-width:760px; }
 .intro h1 span { color:var(--blue); }
 .intro p { color:var(--muted); margin:18px 0 0; font-size:17px; }
